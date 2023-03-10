@@ -54,11 +54,11 @@ int main(void)
   /* Infinite loop */
   while (1)
   {
-    /* Test delay */
-	if(TIM6->CNT >= 0xffff){		/* When Timer6 has reached 0xffff toggle led and reset timer */
-		GPIOA->ODR ^= 0b1<<5;		/* Toggle LED 5 on PORTA*/
-		TIM6->CNT = 0;            	/* Reset timer6 counter value */
-	}
+    /* Test delay if interript is used */
+	  if (tim6IntCounter > 5){			/* Test if variable is updated from interrupt */
+	  		 GPIOA->ODR |= 0b1<<6;		/* Turn on LED on PORTA pin 5 */
+	  		 tim6IntCounter=0;			/* rest value */
+	  	  }
 
 
 
