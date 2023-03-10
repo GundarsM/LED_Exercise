@@ -28,7 +28,7 @@ SOFTWARE.
 */
 
 /* Includes */
-#include "stm32f0xx.h"
+#include "hardware.h"
 
 /* Private macro */
 /* Private variables */
@@ -44,13 +44,22 @@ SOFTWARE.
 */
 int main(void)
 {
-  uint32_t i = 0;
 
-  /* TODO - Add your application code here */
+	init_clocks();
+	led_pin_setup();
+	//test_leds();
+	button_pin_setup();
 
   /* Infinite loop */
   while (1)
   {
-	i++;
+	  /* test button */
+	  if(GPIOC->IDR&(1<<13)){		/* check when pin is low */
+		  GPIOA->ODR &=0<<5; 		/* switches that LED off*/
+	  }
+	  else{
+		  GPIOA->ODR |= 0b1<<5;		/* turn on LED on PORTA pin 5 */
+		}
+
   }
 }
