@@ -1,0 +1,7 @@
+.settings/
+Debug/
+Drivers/
+.cproject
+.project
+LED_Exercise.elf.launch
+stm32_flash.ld
