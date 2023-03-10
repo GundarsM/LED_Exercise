@@ -15,6 +15,7 @@ void init_clocks(void)
 	RCC->AHBENR |= 0x1<<17;		/* Enable port A */
 	RCC->AHBENR |= 0x1<<18;		/* Enable port B */
 	RCC->AHBENR |= 0x1<<19;		/* Enable port C */
+	RCC->APB1ENR |= (1<<4); 	/* enable clock for timer6 */
 }
 
 /* Prepares pins for their operation modes */
@@ -65,3 +66,31 @@ void button_pin_setup(void)
 	GPIOC->OSPEEDR |= 0b11<<26;		/* set high-speed */
 	GPIOC->PUPDR |= 0b01<<26;		/* set pull-up, technically no need as there is an external pull-up connected to the button */
 }
+
+void init_timer_6(void)
+{
+	TIM6->PSC = 50; 				/* set prescaler -> PSC +1 */
+	TIM6->ARR = 0xffff;        		/* Set timer to reset after CNT = 100 */
+	TIM6->DIER |= 1;				/* enable interrupt */
+
+	/* setup interrupt */
+	NVIC->IP[TIM6_IRQn] =  (1 << 4); 	/* Set priority to 2 */
+	NVIC->ISER[TIM6_IRQn >> 5] |= (1 << (TIM6_IRQn % 32)); /* Enable interrupt */
+	TIM6->SR &= ~(1<<0);				/* Clear status register*/
+
+	TIM6->EGR |= (1<<0);    			/* Reset timer counter registers */
+	TIM6->CNT = 0;          			/* Manually reset CNT */
+	TIM6->CR1 |= 1; 					/* enable timer6 */
+
+	tim6IntCounter=0;
+}
+
+/* Timer 6 interrupt service routine */
+void TIM6_IRQHandler(void){
+	tim6IntCounter++;
+	TIM6->SR &= ~(1<<0); 	/* Clear UIF update interrupt flag */
+}
+
+
+
+

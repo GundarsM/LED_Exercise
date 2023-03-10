@@ -49,17 +49,18 @@ int main(void)
 	led_pin_setup();
 	//test_leds();
 	button_pin_setup();
+	init_timer_6();
 
   /* Infinite loop */
   while (1)
   {
-	  /* test button */
-	  if(GPIOC->IDR&(1<<13)){		/* check when pin is low */
-		  GPIOA->ODR &=0<<5; 		/* switches that LED off*/
-	  }
-	  else{
-		  GPIOA->ODR |= 0b1<<5;		/* turn on LED on PORTA pin 5 */
-		}
+    /* Test delay */
+	if(TIM6->CNT >= 0xffff){		/* When Timer6 has reached 0xffff toggle led and reset timer */
+		GPIOA->ODR ^= 0b1<<5;		/* Toggle LED 5 on PORTA*/
+		TIM6->CNT = 0;            	/* Reset timer6 counter value */
+	}
+
+
 
   }
 }
