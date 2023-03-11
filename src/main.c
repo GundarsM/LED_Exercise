@@ -49,17 +49,34 @@ int main(void)
 	led_pin_setup();
 	//test_leds();
 	button_pin_setup();
+	init_serial_USART1();
 
   /* Infinite loop */
-  while (1)
-  {
-	  /* test button */
-	  if(GPIOC->IDR&(1<<13)){		/* check when pin is low */
-		  GPIOA->ODR &=0<<5; 		/* switches that LED off*/
-	  }
-	  else{
-		  GPIOA->ODR |= 0b1<<5;		/* turn on LED on PORTA pin 5 */
-		}
 
-  }
-}
+	send_string_USART1("Begin");
+	while (1)
+	{
+		uint8_t symbol = receive_byte_USART1();	/* Receive data if available */
+		if(symbol){
+			if(symbol=='q'){
+				test_leds();
+			}
+			send_string_USART1("Data received:");
+			send_byte_USART1(symbol);			/* Send back received symbol */
+			send_byte_USART1('\n');		/* new line and return to start of line*/
+			send_byte_USART1('\r');
+			symbol = 0;					/* Rest received value */
+		} /* end of symbol received */
+
+
+		/* test button */
+		if(GPIOC->IDR&(1<<13)){		/* check when pin is low */
+			GPIOA->ODR &=0<<5; 		/* switches that LED off*/
+		}
+		else{
+			GPIOA->ODR |= 0b1<<5;		/* turn on LED on PORTA pin 5 */
+			send_byte_USART1('a');	/* send one symbol when button is pressed */
+		} /* end of test button */
+
+	}	/* end of while(1) */
+}	/* end of main */
