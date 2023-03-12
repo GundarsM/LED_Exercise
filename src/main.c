@@ -42,41 +42,64 @@ SOFTWARE.
 **
 **===========================================================================
 */
+
+
+
 int main(void)
 {
-
+	/* Call peripheral initializations */
 	init_clocks();
-	led_pin_setup();
-	//test_leds();
-	button_pin_setup();
+	init_led_pins();
+	init_button_pin();
 	init_serial_USART1();
+	init_timer_6();
 
-  /* Infinite loop */
+	/* some variables for running light algorithm */
+	uint32_t runing_light_data = 1;			/* Will hold info of which LED to turn on*/
+	uint32_t runing_light_dirrection = 0;	/*Will hold info of running lights running direction*/
 
-	send_string_USART1("Begin");
+	send_string_USART1("Begin");			/* Send info to terminal of algorithm starting */
+	tunr_on_led(runing_light_data);			/* Makes sure first led is turned on when algorithm starts */
+
+	/* Infinite loop */
 	while (1)
 	{
+		/* TEST SERIAL */
 		uint8_t symbol = receive_byte_USART1();	/* Receive data if available */
 		if(symbol){
-			if(symbol=='q'){
-				test_leds();
-			}
 			send_string_USART1("Data received:");
 			send_byte_USART1(symbol);			/* Send back received symbol */
-			send_byte_USART1('\n');		/* new line and return to start of line*/
+			send_byte_USART1('\n');				/* new line and return to start of line*/
 			send_byte_USART1('\r');
-			symbol = 0;					/* Rest received value */
+			symbol = 0;							/* Rest received value */
 		} /* end of symbol received */
 
+		/* TEST BUTTON */
+		if(BTN_RD){								/* Poll if pushbutton pressed */
+				for(int i=0;i<50000;i++); 		/* Really primitive de-bounce for button*/
+				if(BTN_RD){						/* Repeat poll if pushbutton pressed */
+					runing_light_dirrection ^= 1;					/* when pressed changes direction */
+					send_string_USART1("Button pressed");			/* Send info to serial console */
+				}/* end of  if(BTN_RD) */
+			}
+		/* end of test button */
 
-		/* test button */
-		if(GPIOC->IDR&(1<<13)){		/* check when pin is low */
-			GPIOA->ODR &=0<<5; 		/* switches that LED off*/
-		}
-		else{
-			GPIOA->ODR |= 0b1<<5;		/* turn on LED on PORTA pin 5 */
-			send_byte_USART1('a');	/* send one symbol when button is pressed */
-		} /* end of test button */
+		/* TEST LIGHT */
+		/* Delay for LED next state, default 500ms, interrupt insures that function
+		 * will be executed as soon as this statement is checked, testing timer
+		 * value (if(TIM6->CNT >= 0xc350)) worked unstable - because of polling some iterations were skipped
+		 * */
+		if(tim6_int_counter>0){												/* Test interrupt counter */
+			if(runing_light_dirrection == 0){								/* Check one direction */
+				runing_light_data = runing_light_data << 1;					/* Set position of next LED */
+				if (runing_light_data>MAX_LED) runing_light_data = MIN_LED; /* Reset value if end reached */
+			}
+			else{															/* Check other direction */
+				runing_light_data = runing_light_data >> 1;					/* Set position of next LED */
+				if (runing_light_data<=MIN_LED) runing_light_data=MAX_LED;}	/* Reset value if end reached */
+			tunr_on_led(runing_light_data);									/* Turns on next led in line, whichever direction */
+			tim6_int_counter = 0;											/* Reset timer counter*/
+		}/* end of if(tim6_int_counter>0) */
 
 	}	/* end of while(1) */
 }	/* end of main */

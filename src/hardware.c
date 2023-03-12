@@ -16,10 +16,11 @@ void init_clocks(void)
 	RCC->AHBENR |= 0x1<<18;		/* Enable port B */
 	RCC->AHBENR |= 0x1<<19;		/* Enable port C */
 	RCC->APB2ENR |= 1<<14;		/* enable clock for USART1 */
+	RCC->APB1ENR |= (1<<4); 	/* enable clock for timer6 */
 }
 
 /* Prepares pins for their operation modes */
-void led_pin_setup(void)
+void init_led_pins(void)
 {
 	/* PORTA pins 5,6,7,8,10 */
 	GPIOA->MODER &= ~((0b11<<10)|(0b11<<12)|(0b11<<14)|(0b11<<16));		/* Reset pin 5,6,7,8 state */
@@ -37,35 +38,57 @@ void led_pin_setup(void)
 	GPIOC->OTYPER &=~0b1<<7;			/* set pin   7 as push-pull pin */
 }
 
-/* Test if all 9 LEDs turn on */
-void test_leds(void)
-{
-	/* Turn on LEDs PORTA pins 5,6,7,8 */
-	GPIOA->ODR |= 0b1<<5;
-	GPIOA->ODR |= 0b1<<6;
-	GPIOA->ODR |= 0b1<<7;
-	GPIOA->ODR |= 0b1<<8;
+/* Turn on necessary LED */
+void tunr_on_led(uint32_t led)
 
-
-	/* Turn on LEDs PORTB pin 4,6,8,9,10 */
-	GPIOB->ODR |= 0b1<<4;
-	GPIOB->ODR |= 0b1<<8;
-	GPIOB->ODR |= 0b1<<9;
-	GPIOB->ODR |= 0b1<<6;
-	GPIOB->ODR |= 0b1<<10;
-
-	/* Turn on LED PORTC pin 7 */
-	GPIOC->ODR |= 0b1<<7;
+	{
+	switch(led){
+	case 0b0000000001: LEDS_OFF; LED0_ON; break;
+	case 0b0000000010: LEDS_OFF; LED1_ON; break;
+	case 0b0000000100: LEDS_OFF; LED2_ON; break;
+	case 0b0000001000: LEDS_OFF; LED3_ON; break;
+	case 0b0000010000: LEDS_OFF; LED4_ON; break;
+	case 0b0000100000: LEDS_OFF; LED5_ON; break;
+	case 0b0001000000: LEDS_OFF; LED6_ON; break;
+	case 0b0010000000: LEDS_OFF; LED7_ON; break;
+	case 0b0100000000: LEDS_OFF; LED8_ON; break;
+	case 0b1000000000: LEDS_OFF; LED9_ON; break;
+	default:LEDS_OFF; break;
+	}//end of switch
 }
 
 /* Setup button for reading, connected on PC13 */
-void button_pin_setup(void)
+void init_button_pin(void)
 {
 	/* setup for reading button */
 	GPIOC->MODER &= ~(0b11<<26);	/* Reset pin 13 state aka input */
 	GPIOC->OTYPER &=~0b1<<13;		/* set as push-pull pin */
 	GPIOC->OSPEEDR |= 0b11<<26;		/* set high-speed */
 	GPIOC->PUPDR |= 0b01<<26;		/* set pull-up, technically no need as there is an external pull-up connected to the button */
+}
+
+void init_timer_6(void)
+{
+	TIM6->PSC = ((DELAY/1000*SYS_CLK)/TIM6_MAX_VAL)-1;	/* Set prescaler -> PSC +1 */
+	TIM6->ARR = TIM6_MAX_VAL;        					/* Set timer to reset after CNT = 0xC350 */
+	TIM6->DIER |= 1;									/* Enable interrupt */
+
+	/* setup interrupt */
+	NVIC->IP[TIM6_IRQn] =  (1 << 4); 						/* Set priority to 2 */
+	NVIC->ISER[TIM6_IRQn >> 5] |= (1 << (TIM6_IRQn % 32)); 	/* Enable interrupt */
+	TIM6->SR &= ~(1<<0);									/* Clear status register*/
+
+	TIM6->EGR |= (1<<0);    	/* Reset timer counter registers */
+	TIM6->CNT = 0;          	/* Manually reset CNT */
+	TIM6->CR1 |= 1; 			/* enable timer6 */
+
+	tim6_int_counter = 0;		/* Initialize interrupt counter */
+}
+
+/* Timer 6 interrupt service routine */
+void TIM6_IRQHandler(void){
+	tim6_int_counter++;
+	TIM6->SR &= ~(1<<0); 	/* Clear UIF update interrupt flag */
 }
 
 void init_serial_USART1(void)
@@ -76,7 +99,7 @@ void init_serial_USART1(void)
     GPIOA->AFR[1] |= (1 << 4)|(1 << 8);  							/* Set PA9 and PA10 alternate function to USART1 */
 
     /* Configure USART1 */
-    USART1->BRR = SYSCLK / 9600.0;  								/* Set baud rate to 9600 */
+    USART1->BRR = SYS_CLK / 9600.0;  								/* Set baud rate to 9600 */
     USART1->CR2 |= USART_CR2_STOP_1;								/* Set 2 stop bits */
     USART1->CR1 = USART_CR1_TE | USART_CR1_UE | USART_CR1_RE ;  	/* Enable transmitter, receiver and USART1 */
 }
