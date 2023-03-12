@@ -57,34 +57,67 @@ int main(void)
 	/* some variables for running light algorithm */
 	uint32_t runing_light_data = 1;			/* Will hold info of which LED to turn on*/
 	uint32_t runing_light_dirrection = 0;	/*Will hold info of running lights running direction*/
+	char delay_string[4] = {0,0,0,0};		/* Placeholder for delay data, received from USART1 */
+	uint32_t delay_received = 0;			/* Flag to check if delay data received*/
+	uint32_t symbol_counter = 0;			/* Counts how many symbols are received */
 
-	send_string_USART1("Begin");			/* Send info to terminal of algorithm starting */
+	send_string_USART1("Begin");			/* Send info to terminal of algorithm starting and interaction instructions*/
+	send_string_USART1("Enter value between 10 and 999 to change the delay between LEDs ");	/* Less than 10 has no visual difference */
+	send_string_USART1("Default delay is 500ms");
+	send_string_USART1("Press pushbutton to change running direction");
 	tunr_on_led(runing_light_data);			/* Makes sure first led is turned on when algorithm starts */
 
 	/* Infinite loop */
 	while (1)
 	{
-		/* TEST SERIAL */
-		uint8_t symbol = receive_byte_USART1();	/* Receive data if available */
-		if(symbol){
-			send_string_USART1("Data received:");
-			send_byte_USART1(symbol);			/* Send back received symbol */
-			send_byte_USART1('\n');				/* new line and return to start of line*/
-			send_byte_USART1('\r');
-			symbol = 0;							/* Rest received value */
-		} /* end of symbol received */
-
-		/* TEST BUTTON */
-		if(BTN_RD){								/* Poll if pushbutton pressed */
-				for(int i=0;i<50000;i++); 		/* Really primitive de-bounce for button*/
-				if(BTN_RD){						/* Repeat poll if pushbutton pressed */
-					runing_light_dirrection ^= 1;					/* when pressed changes direction */
-					send_string_USART1("Button pressed");			/* Send info to serial console */
-				}/* end of  if(BTN_RD) */
+/* PROCESS SERIAL DATA */
+		uint8_t received_symbol = receive_byte_USART1();			/* Receive data if available */
+		if(received_symbol){										/* If any data received over USART1*/
+			if((received_symbol != 13) && (symbol_counter < 3)){	/* Test if ENTER is pressed or 3 symbols have been entered */
+				delay_string[symbol_counter++] = received_symbol;	/* Add received symbol to data array for delay creation */
+				send_byte_USART1(received_symbol);					/* Send it back to PC to show what has been received */
+				if(symbol_counter > 2) delay_received = 1;			/* No need to press ENTER in this case */
 			}
-		/* end of test button */
+			else{													/* When 3 symbols or ENTER has been received */
+				if (symbol_counter > 1) delay_received = 1;		/* Set flag only if more than 1 symbol has been received*/
+			}
+		} /* end of received symbol processing */
 
-		/* TEST LIGHT */
+/* PROCESS RECEIVED STRING */
+		if(delay_received){								/* If delay entered then process received string */
+			send_string_USART1("\r\rYou entered:");
+			send_string_USART1(delay_string);			/* Print out received value */
+			delay_received=0;							/* Clear delay received flag */
+
+			uint32_t new_delay=0;										/* Variable will hold the new delay */
+			for(uint32_t i = 0; i < symbol_counter; i++){				/* Convert string to numeral */
+				if((delay_string[i]>='0')&&(delay_string[i]<='9')){		/* Test if only numbers have been entered */
+					new_delay=new_delay*10+(delay_string[i]-48);		/* Convert string to number */
+					delay_string[i]=0;									/* Clear char array entry */
+				}
+				else{
+					send_string_USART1("Invalid input. Defaults to 500ms");	/* Output if invalid data has been received */
+					new_delay=500;											/* Set the default value of 500ms */
+					for(uint32_t j = 0;j < 3; j++){							/* Clear data from char array that held delay info */
+						delay_string[j]=0;
+					}
+					break;													/* Leave the FOR loop in this case */
+				}
+			} /* end of FOR loop*/
+			symbol_counter=0;					/* Reset symbol counter for next time when it is received */
+			change_delay(new_delay);			/* Update Timer6 prescaler according to new delay data */
+		} /* end of received string processing */
+
+/* PROCESS BUTTON */
+		if(BTN_RD){											/* Poll if pushbutton pressed */
+				for(uint32_t i = 0; i < 50000; i++); 		/* Really primitive de-bounce for button*/
+				if(BTN_RD){									/* Repeat poll and check if pushbutton pressed */
+					runing_light_dirrection ^= 1;			/* When pressed changes direction */
+					send_string_USART1("Button pressed");	/* Send info to serial console */
+				} /* end of  if(BTN_RD) */
+			} /* end of process button */
+
+/* PROCESS RUNNING LIGHT */
 		/* Delay for LED next state, default 500ms, interrupt insures that function
 		 * will be executed as soon as this statement is checked, testing timer
 		 * value (if(TIM6->CNT >= 0xc350)) worked unstable - because of polling some iterations were skipped
@@ -92,14 +125,13 @@ int main(void)
 		if(tim6_int_counter>0){												/* Test interrupt counter */
 			if(runing_light_dirrection == 0){								/* Check one direction */
 				runing_light_data = runing_light_data << 1;					/* Set position of next LED */
-				if (runing_light_data>MAX_LED) runing_light_data = MIN_LED; /* Reset value if end reached */
+				if (runing_light_data>MAX_LED) runing_light_data = 1; /* Reset value if end reached */
 			}
 			else{															/* Check other direction */
 				runing_light_data = runing_light_data >> 1;					/* Set position of next LED */
 				if (runing_light_data<=MIN_LED) runing_light_data=MAX_LED;}	/* Reset value if end reached */
 			tunr_on_led(runing_light_data);									/* Turns on next led in line, whichever direction */
 			tim6_int_counter = 0;											/* Reset timer counter*/
-		}/* end of if(tim6_int_counter>0) */
-
-	}	/* end of while(1) */
-}	/* end of main */
+		} /* end of processing running lights */
+	} /* end of while(1) */
+} /* end of main */

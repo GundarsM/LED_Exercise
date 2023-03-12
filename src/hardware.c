@@ -67,9 +67,10 @@ void init_button_pin(void)
 	GPIOC->PUPDR |= 0b01<<26;		/* set pull-up, technically no need as there is an external pull-up connected to the button */
 }
 
+/* Initialize timer6 for generating delay*/
 void init_timer_6(void)
 {
-	TIM6->PSC = ((DELAY/1000*SYS_CLK)/TIM6_MAX_VAL)-1;	/* Set prescaler -> PSC +1 */
+	TIM6->PSC = ((DELAY/1000*SYS_CLK)/TIM6_MAX_VAL)-1;	/* Set prescaler -> PSC+1 */
 	TIM6->ARR = TIM6_MAX_VAL;        					/* Set timer to reset after CNT = 0xC350 */
 	TIM6->DIER |= 1;									/* Enable interrupt */
 
@@ -87,10 +88,18 @@ void init_timer_6(void)
 
 /* Timer 6 interrupt service routine */
 void TIM6_IRQHandler(void){
-	tim6_int_counter++;
+	tim6_int_counter++;		/* Increase interrupt counter */
 	TIM6->SR &= ~(1<<0); 	/* Clear UIF update interrupt flag */
 }
 
+/* Change Timer6 parameters to adjust for inputed delay */
+void change_delay(int delay)
+{
+	TIM6->PSC = ((delay/1000.0*SYS_CLK)/TIM6_MAX_VAL)-1;		/* Calculate new prescaler value PSC+1 */
+	TIM6->CNT = 0;          									/* Manually reset CNT */
+}
+
+/* Initialize serial interface on USART1 module as USART2 pins are disconnected on Nucleo-64 board */
 void init_serial_USART1(void)
 {
 
