@@ -16,6 +16,7 @@ Installation guide for Linux is [here](https://www.st.com/resource/en/user_manua
 
 ## Resources:
 STM32F030R8T6 reference manual is [here](https://www.st.com/resource/en/reference_manual/dm00091010-stm32f030x4x6x8xc-and-stm32f070x6xb-advanced-armbased-32bit-mcus-stmicroelectronics.pdf)  
+STM32F030x8 datasheet is [here](https://www.st.com/resource/en/datasheet/stm32f030f4.pdf)  
 NUCLEO-F030R8 pinout can be found [here](https://os.mbed.com/platforms/ST-Nucleo-F030R8/)
 
 ## DEMO:
