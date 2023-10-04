@@ -1,5 +1,5 @@
 # LED_Exercise
-## Test exercise for MikroTik:
+## Test exercise for STM:
 
 Use STM32 or Atmel SAMD20 or Microchip PIC microcontroller to implement runngin light of at least 9 LEDs and one button that can change the dirrection of lights. UART can be used for debugging and LED speed control
 Language: C and/or C++
